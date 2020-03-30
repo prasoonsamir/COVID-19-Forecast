@@ -1,0 +1,306 @@
+import numpy as np
+import pandas as pd
+import statsmodels
+from statsmodels.tsa.stattools import adfuller
+import matplotlib.pyplot as plt
+from scipy.stats import shapiro
+import warnings
+import keras
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.layers import LSTM
+from keras.layers import Dropout
+from keras.layers import *
+from keras.preprocessing.sequence import TimeseriesGenerator
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_absolute_error
+warnings.filterwarnings("ignore")
+df = pd.read_csv("C:\\Users\\Samir Prasun\\Desktop\\COVID-19\\worldwide-aggregated.csv")
+Confirmed=df.Confirmed.values
+Recovered=df.Recovered.values
+Deaths=df.Deaths.values
+stat, p = shapiro(Confirmed)
+print('Statistics=%.3f, p=%.3f' % (stat, p))
+# interpret
+alpha = 0.05
+if p > alpha:
+	print('Sample looks Gaussian (fail to reject H0)')
+else:
+	print('Sample does not look Gaussian (reject H0)')
+    
+result = adfuller(Confirmed)
+print('ADF Statistic: %f' % result[0])
+print('p-value: %f' % result[1])
+
+
+dataset = Confirmed
+
+
+
+dataset = dataset.astype('float32')
+dataset = np.reshape(dataset, (-1, 1))
+scaler = MinMaxScaler(feature_range = (0, 1))
+
+dataset = scaler.fit_transform(dataset)
+
+print(df.head)
+train_size = int(len(df) * 0.8)
+test_size = len(df) - train_size
+train, test = dataset[0:train_size], dataset[train_size:len(dataset)]
+
+test_actual = scaler.inverse_transform(test)
+print (train.shape)
+
+def create_dataset(dataset, look_back=1):
+    X, Y = [], []
+    for i in range(len(dataset)-look_back):
+        a = dataset[i:(i+look_back)]
+        X.append(a)
+        b = (dataset[(i + look_back)])
+        Y.append(b)
+    return np.array(X), np.array(Y)
+    
+look_back = 1
+H = 20
+X_train, Y_train = create_dataset(train, look_back)
+X_test, Y_test = create_dataset(test, look_back)
+
+# reshape input to be [samples, time steps, features]
+X_train = np.reshape(X_train, (X_train.shape[0], look_back, 1))
+X_test = np.reshape(X_test, (X_test.shape[0], look_back, 1))
+
+
+#lstm_model = Sequential ()
+#lstm_model.add(LSTM(output_dim = 4, activation='tanh', input_shape =(4, 1)))
+#lstm_model.add(Dense(output_dim=30, activation='sigmoid')
+#lstm_model.add(Dense(output_dim=20))    # our horizon is produced!
+
+lstm_model = Sequential()
+lstm_model.add(LSTM(10, input_shape=(None, 1)))
+#lstm_model.add(LSTM(output_dim = 30, activation='tanh', input_shape =(4, 1)))
+#lstm_model.add(Dense(output_dim=30, activation='sigmoid')
+lstm_model.add(Dropout(0.2))
+
+lstm_model.add(Dense(1))
+
+lstm_model.compile(loss='mean_squared_error', optimizer='adam', metrics=['accuracy'])
+
+lstm_model.fit(X_train, Y_train, epochs=200, batch_size=10)
+...
+_, accuracy = lstm_model.evaluate(X_test, Y_test)
+print('Accuracy: %.2f' % (accuracy*100))
+
+
+
+train_predict = lstm_model.predict(X_train)
+test_predict = lstm_model.predict(X_test)
+
+test_predict = np.reshape(test_predict, (test_predict.shape[0], look_back, 1))
+future = []
+
+currentStep = test_predict[-1:,:,:]
+for i in range(30):
+    currentStep = lstm_model.predict(currentStep)
+    future.append(currentStep)
+    currentStep = np.reshape(currentStep, (currentStep.shape[0], look_back, 1))    
+lstm_model.reset_states()
+
+Fut=np.array(future)
+Fut = np.reshape(Fut, (Fut.shape[0], 1))
+Confirmed=scaler.inverse_transform(np.array(Fut))
+
+
+train_predict_Confirmed = scaler.inverse_transform(train_predict)
+
+
+
+
+
+dataset = Recovered
+
+
+
+dataset = dataset.astype('float32')
+dataset = np.reshape(dataset, (-1, 1))
+scaler = MinMaxScaler(feature_range = (0, 1))
+
+dataset = scaler.fit_transform(dataset)
+
+print(df.head)
+train_size = int(len(df) * 0.8)
+test_size = len(df) - train_size
+train, test = dataset[0:train_size], dataset[train_size:len(dataset)]
+
+test_actual = scaler.inverse_transform(test)
+print (train.shape)
+
+def create_dataset(dataset, look_back=1):
+    X, Y = [], []
+    for i in range(len(dataset)-look_back):
+        a = dataset[i:(i+look_back)]
+        X.append(a)
+        b = (dataset[(i + look_back)])
+        Y.append(b)
+    return np.array(X), np.array(Y)
+    
+look_back = 1
+H = 20
+X_train, Y_train = create_dataset(train, look_back)
+X_test, Y_test = create_dataset(test, look_back)
+
+# reshape input to be [samples, time steps, features]
+X_train = np.reshape(X_train, (X_train.shape[0], look_back, 1))
+X_test = np.reshape(X_test, (X_test.shape[0], look_back, 1))
+
+
+#lstm_model = Sequential ()
+#lstm_model.add(LSTM(output_dim = 4, activation='tanh', input_shape =(4, 1)))
+#lstm_model.add(Dense(output_dim=30, activation='sigmoid')
+#lstm_model.add(Dense(output_dim=20))    # our horizon is produced!
+
+lstm_model = Sequential()
+lstm_model.add(LSTM(10, input_shape=(None, 1)))
+#lstm_model.add(LSTM(output_dim = 30, activation='tanh', input_shape =(4, 1)))
+#lstm_model.add(Dense(output_dim=30, activation='sigmoid')
+lstm_model.add(Dropout(0.2))
+
+lstm_model.add(Dense(1))
+
+lstm_model.compile(loss='mean_squared_error', optimizer='adam', metrics=['accuracy'])
+
+lstm_model.fit(X_train, Y_train, epochs=200, batch_size=10)
+...
+_, accuracy = lstm_model.evaluate(X_test, Y_test)
+print('Accuracy: %.2f' % (accuracy*100))
+
+
+
+train_predict = lstm_model.predict(X_train)
+test_predict = lstm_model.predict(X_test)
+
+test_predict = np.reshape(test_predict, (test_predict.shape[0], look_back, 1))
+future = []
+
+currentStep = test_predict[-1:,:,:]
+for i in range(30):
+    currentStep = lstm_model.predict(currentStep)
+    future.append(currentStep)
+    currentStep = np.reshape(currentStep, (currentStep.shape[0], look_back, 1))    
+lstm_model.reset_states()
+
+Fut=np.array(future)
+Fut = np.reshape(Fut, (Fut.shape[0], 1))
+Recovered=scaler.inverse_transform(np.array(Fut))
+
+
+train_predict_Recovered = scaler.inverse_transform(train_predict)
+
+
+dataset = Deaths
+
+
+
+dataset = dataset.astype('float32')
+dataset = np.reshape(dataset, (-1, 1))
+scaler = MinMaxScaler(feature_range = (0, 1))
+
+dataset = scaler.fit_transform(dataset)
+
+print(df.head)
+train_size = int(len(df) * 0.8)
+test_size = len(df) - train_size
+train, test = dataset[0:train_size], dataset[train_size:len(dataset)]
+
+test_actual = scaler.inverse_transform(test)
+print (train.shape)
+
+def create_dataset(dataset, look_back=1):
+    X, Y = [], []
+    for i in range(len(dataset)-look_back):
+        a = dataset[i:(i+look_back)]
+        X.append(a)
+        b = (dataset[(i + look_back)])
+        Y.append(b)
+    return np.array(X), np.array(Y)
+    
+look_back = 1
+H = 20
+X_train, Y_train = create_dataset(train, look_back)
+X_test, Y_test = create_dataset(test, look_back)
+
+# reshape input to be [samples, time steps, features]
+X_train = np.reshape(X_train, (X_train.shape[0], look_back, 1))
+X_test = np.reshape(X_test, (X_test.shape[0], look_back, 1))
+
+
+#lstm_model = Sequential ()
+#lstm_model.add(LSTM(output_dim = 4, activation='tanh', input_shape =(4, 1)))
+#lstm_model.add(Dense(output_dim=30, activation='sigmoid')
+#lstm_model.add(Dense(output_dim=20))    # our horizon is produced!
+
+lstm_model = Sequential()
+lstm_model.add(LSTM(10, input_shape=(None, 1)))
+#lstm_model.add(LSTM(output_dim = 30, activation='tanh', input_shape =(4, 1)))
+#lstm_model.add(Dense(output_dim=30, activation='sigmoid')
+lstm_model.add(Dropout(0.2))
+
+lstm_model.add(Dense(1))
+
+lstm_model.compile(loss='mean_squared_error', optimizer='adam', metrics=['accuracy'])
+
+lstm_model.fit(X_train, Y_train, epochs=200, batch_size=10)
+...
+_, accuracy = lstm_model.evaluate(X_test, Y_test)
+print('Accuracy: %.2f' % (accuracy*100))
+
+
+
+train_predict = lstm_model.predict(X_train)
+test_predict = lstm_model.predict(X_test)
+
+test_predict = np.reshape(test_predict, (test_predict.shape[0], look_back, 1))
+future = []
+
+currentStep = test_predict[-1:,:,:]
+for i in range(30):
+    currentStep = lstm_model.predict(currentStep)
+    future.append(currentStep)
+    currentStep = np.reshape(currentStep, (currentStep.shape[0], look_back, 1))    
+lstm_model.reset_states()
+
+Fut=np.array(future)
+Fut = np.reshape(Fut, (Fut.shape[0], 1))
+Deaths=scaler.inverse_transform(np.array(Fut))
+
+
+train_predict_Deaths = scaler.inverse_transform(train_predict)
+
+
+plt.figure(figsize=(10,6))
+plt.plot(train, color='blue', label='Actual')
+plt.plot(train_predict, color='red', label='Predicted data')
+plt.title('Oil Rate Training')
+plt.xlabel('Date')
+plt.ylabel('Confirmed cases')
+plt.legend()
+plt.show()
+
+fig = plt.figure(figsize=(8,4))
+plt.plot(Confirmed, color='blue', label='Confirmed cases worldwide')
+plt.title('Predictions in next 30 days')
+plt.xlabel('Days beyond 28th March')
+plt.ylabel('COVID cases worldwide')
+plt.legend()
+plt.show()
+fig.savefig("C:\\Users\\Samir Prasun\\Desktop\\COVID-19\\Confirmed.pdf", bbox_inches='tight', dpi=600)
+
+fig1 = plt.figure(figsize=(8,4))
+plt.plot(Recovered, color='red', label='Recovered cases worldwide')
+plt.plot(Deaths, color='green', label='Death cases worldwide')
+plt.title('Predictions in next 30 days')
+plt.xlabel('Days beyond 28th March')
+plt.ylabel('COVID cases worldwide')
+plt.legend()
+plt.show()
+fig1.savefig("C:\\Users\\Samir Prasun\\Desktop\\COVID-19\\Death.pdf", bbox_inches='tight', dpi=600)
